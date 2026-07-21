@@ -50,14 +50,12 @@ class LutarymCalendarCard extends HTMLElement {
   }
 
   setConfig(config) {
-    if (!config.entities || !Array.isArray(config.entities) || config.entities.length === 0) {
-      throw new Error("lutarym-calendar-card: 'entities' muss eine nicht-leere Liste sein.");
-    }
+    const rawEntities = Array.isArray(config.entities) ? config.entities : [];
     this._config = {
       title: config.title || "",
-      entities: config.entities.map((e) =>
-        typeof e === "string" ? { entity: e } : e
-      ),
+      entities: rawEntities
+        .map((e) => (typeof e === "string" ? { entity: e } : e))
+        .filter((e) => e && e.entity), // ignore blank rows while editing in the GUI
       days_ahead: config.days_ahead ?? 14,
       max_events: config.max_events ?? 30,
       show_past_today: config.show_past_today ?? false,
@@ -362,7 +360,7 @@ class LutarymCalendarCardEditor extends HTMLElement {
   }
 
   setConfig(config) {
-    this._config = {
+    const normalized = {
       title: config.title || "",
       entities: (config.entities || []).map((e) =>
         typeof e === "string" ? { entity: e, name: "", color: "" } : { name: "", color: "", ...e }
@@ -373,7 +371,15 @@ class LutarymCalendarCardEditor extends HTMLElement {
       refresh_seconds: config.refresh_seconds ?? 60,
       language: config.language || "",
     };
-    if (this._built) this._render();
+
+    // HA round-trips the config we just emitted back into setConfig(). If it's
+    // unchanged from what we already have rendered, skip the rebuild — otherwise
+    // every keystroke in a text field would tear down the DOM and steal focus.
+    const unchanged =
+      this._built && this._config && JSON.stringify(normalized) === JSON.stringify(this._config);
+
+    this._config = normalized;
+    if (this._built && !unchanged) this._render();
   }
 
   set hass(hass) {
@@ -392,7 +398,7 @@ class LutarymCalendarCardEditor extends HTMLElement {
   _emitChange() {
     this.dispatchEvent(
       new CustomEvent("config-changed", {
-        detail: { config: this._config },
+        detail: { config: JSON.parse(JSON.stringify(this._config)) },
         bubbles: true,
         composed: true,
       })
