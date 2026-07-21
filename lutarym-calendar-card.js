@@ -6,8 +6,8 @@
  * Config:
  *   type: custom:lutarym-calendar-card
  *   title: "Kalender"                 // optional
- *   entities:                          // required, list of calendar.* entities
- *     - entity: calendar.apple_kalender
+ *   entities:                          // required, list of calendar.* entities you pick yourself
+ *     - entity: calendar.YOUR_ENTITY_ID
  *       name: "Apple"                  // optional label
  *       color: "#4a90d9"               // optional left-bar accent color
  *   days_ahead: 14                     // optional, default 14
@@ -17,7 +17,7 @@
  *   language: "de"                     // optional, "de" or "en", default auto from hass
  */
 
-const CARD_VERSION = "1.0.0";
+const CARD_VERSION = "1.0.1";
 
 const I18N = {
   de: {
