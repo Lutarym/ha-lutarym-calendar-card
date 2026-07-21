@@ -1,5 +1,6 @@
 {
-  "name": "Lutarym Calendar Card",
+  "name": "Electricity Overview by Lutarym",
   "render_readme": true,
-  "filename": "lutarym-calendar-card-v2.js"
+  "content_in_root": true,
+  "filename": "lutarym-electricity-overview-card.js"
 }
