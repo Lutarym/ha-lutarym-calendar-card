@@ -17,7 +17,7 @@
  *   language: "de"                     // optional, "de" or "en", default auto from hass
  */
 
-const CARD_VERSION = "1.0.4";
+const CARD_VERSION = "1.0.5";
 
 const I18N = {
   de: {
@@ -52,6 +52,7 @@ class LutarymCalendarCard extends HTMLElement {
   setConfig(config) {
     const rawEntities = Array.isArray(config.entities) ? config.entities : [];
     this._config = {
+      ...config,
       title: config.title || "",
       entities: rawEntities
         .map((e) => (typeof e === "string" ? { entity: e } : e))
@@ -364,6 +365,7 @@ class LutarymCalendarCardEditor extends HTMLElement {
 
   setConfig(config) {
     const normalized = {
+      ...config, // preserve grid_options, visibility, layout tab settings, etc. verbatim
       type: config.type || "custom:lutarym-calendar-card",
       title: config.title || "",
       entities: (config.entities || []).map((e) =>
