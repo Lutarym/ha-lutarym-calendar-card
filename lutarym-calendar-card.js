@@ -342,7 +342,9 @@ class LutarymCalendarCard extends HTMLElement {
   }
 }
 
-customElements.define("lutarym-calendar-card", LutarymCalendarCard);
+if (!customElements.get("lutarym-calendar-card")) {
+  customElements.define("lutarym-calendar-card", LutarymCalendarCard);
+}
 
 /**
  * Visual (GUI) config editor — no YAML required.
@@ -604,16 +606,20 @@ class LutarymCalendarCardEditor extends HTMLElement {
   }
 }
 
-customElements.define("lutarym-calendar-card-editor", LutarymCalendarCardEditor);
+if (!customElements.get("lutarym-calendar-card-editor")) {
+  customElements.define("lutarym-calendar-card-editor", LutarymCalendarCardEditor);
+}
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "lutarym-calendar-card",
-  name: "Lutarym Calendar Card",
-  description: "Kompakte Agenda-Liste ohne Icon-Ballast, gruppiert nach Tag.",
-  preview: false,
-  documentationURL: "https://github.com/lutarym/lutarym-calendar-card",
-});
+if (!window.customCards.some((c) => c.type === "lutarym-calendar-card")) {
+  window.customCards.push({
+    type: "lutarym-calendar-card",
+    name: "Lutarym Calendar Card",
+    description: "Kompakte Agenda-Liste ohne Icon-Ballast, gruppiert nach Tag.",
+    preview: false,
+    documentationURL: "https://github.com/lutarym/lutarym-calendar-card",
+  });
+}
 
 console.info(
   `%c LUTARYM-CALENDAR-CARD %c v${CARD_VERSION} `,
