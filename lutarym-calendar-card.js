@@ -329,7 +329,7 @@ class LutarymCalendarCard extends HTMLElement {
 
   static getStubConfig() {
     return {
-      entities: [{ entity: "calendar.apple_kalender" }],
+      entities: [],
       days_ahead: 14,
       max_events: 30,
     };
