@@ -17,7 +17,7 @@
  *   language: "de"                     // optional, "de" or "en", default auto from hass
  */
 
-const CARD_VERSION = "1.0.2";
+const CARD_VERSION = "1.0.3";
 
 const I18N = {
   de: {
@@ -59,6 +59,7 @@ class LutarymCalendarCard extends HTMLElement {
       days_ahead: config.days_ahead ?? 14,
       max_events: config.max_events ?? 30,
       show_past_today: config.show_past_today ?? false,
+      show_today_only: config.show_today_only ?? false,
       refresh_seconds: config.refresh_seconds ?? 60,
       language: config.language || null,
     };
@@ -195,7 +196,8 @@ class LutarymCalendarCard extends HTMLElement {
     if (!this._hass || !this._config) return;
     const start = new Date();
     start.setHours(0, 0, 0, 0);
-    const end = new Date(start.getTime() + this._config.days_ahead * 86400000);
+    const rangeDays = this._config.show_today_only ? 1 : this._config.days_ahead;
+    const end = new Date(start.getTime() + rangeDays * 86400000);
 
     const startIso = start.toISOString();
     const endIso = end.toISOString();
@@ -369,6 +371,7 @@ class LutarymCalendarCardEditor extends HTMLElement {
       days_ahead: config.days_ahead ?? 14,
       max_events: config.max_events ?? 30,
       show_past_today: config.show_past_today ?? false,
+      show_today_only: config.show_today_only ?? false,
       refresh_seconds: config.refresh_seconds ?? 60,
       language: config.language || "",
     };
@@ -564,6 +567,7 @@ class LutarymCalendarCardEditor extends HTMLElement {
     daysField.label = "Tage im Voraus";
     daysField.type = "number";
     daysField.value = this._config.days_ahead;
+    daysField.disabled = this._config.show_today_only;
     daysField.addEventListener("input", (e) => {
       this._config.days_ahead = Number(e.target.value) || 14;
       this._emitChange();
@@ -591,6 +595,21 @@ class LutarymCalendarCardEditor extends HTMLElement {
     numRow.appendChild(refreshField);
 
     wrap.appendChild(numRow);
+
+    // --- Show today only switch ---
+    const todayOnlyRow = document.createElement("div");
+    todayOnlyRow.className = "switch-row";
+    const todayOnlyLabel = document.createElement("span");
+    todayOnlyLabel.textContent = "Nur heutigen Tag anzeigen (statt mehrerer Tage)";
+    todayOnlyRow.appendChild(todayOnlyLabel);
+    const todayOnlySwitch = document.createElement("ha-switch");
+    todayOnlySwitch.checked = this._config.show_today_only;
+    todayOnlySwitch.addEventListener("change", (e) => {
+      this._config.show_today_only = e.target.checked;
+      this._emitChange();
+    });
+    todayOnlyRow.appendChild(todayOnlySwitch);
+    wrap.appendChild(todayOnlyRow);
 
     // --- Show past today switch ---
     const switchRow = document.createElement("div");
