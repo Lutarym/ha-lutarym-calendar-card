@@ -17,7 +17,7 @@
  *   language: "de"                     // optional, "de" or "en", default auto from hass
  */
 
-const CARD_VERSION = "1.0.3";
+const CARD_VERSION = "1.0.4";
 
 const I18N = {
   de: {
@@ -359,6 +359,7 @@ class LutarymCalendarCardEditor extends HTMLElement {
     this._hass = null;
     this._config = null;
     this._built = false;
+    this._awaitingOwnEcho = false;
   }
 
   setConfig(config) {
@@ -376,14 +377,30 @@ class LutarymCalendarCardEditor extends HTMLElement {
       language: config.language || "",
     };
 
-    // HA round-trips the config we just emitted back into setConfig(). If it's
-    // unchanged from what we already have rendered, skip the rebuild — otherwise
-    // every keystroke in a text field would tear down the DOM and steal focus.
-    const unchanged =
-      this._built && this._config && JSON.stringify(normalized) === JSON.stringify(this._config);
+    if (!this._built) {
+      this._config = normalized;
+      return;
+    }
 
+    const matchesCurrent = JSON.stringify(normalized) === JSON.stringify(this._config);
+    if (matchesCurrent) {
+      // Confirmation that HA has caught up with our latest local edit.
+      this._config = normalized;
+      this._awaitingOwnEcho = false;
+      return;
+    }
+
+    if (this._awaitingOwnEcho) {
+      // A stale round-trip for an EARLIER edit, arriving after we've already
+      // moved on locally (e.g. rapid add/remove clicks). Do not let it clobber
+      // newer local state — wait for the confirmation that matches our latest edit.
+      return;
+    }
+
+    // Genuinely different from anything we emitted ourselves — e.g. the user
+    // edited the raw YAML and switched back to the visual editor. Accept it.
     this._config = normalized;
-    if (this._built && !unchanged) this._render();
+    this._render();
   }
 
   set hass(hass) {
@@ -400,6 +417,7 @@ class LutarymCalendarCardEditor extends HTMLElement {
   }
 
   _emitChange() {
+    this._awaitingOwnEcho = true;
     this.dispatchEvent(
       new CustomEvent("config-changed", {
         detail: { config: JSON.parse(JSON.stringify(this._config)) },
