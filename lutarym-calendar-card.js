@@ -336,9 +336,275 @@ class LutarymCalendarCard extends HTMLElement {
       max_events: 30,
     };
   }
+
+  static getConfigElement() {
+    return document.createElement("lutarym-calendar-card-editor");
+  }
 }
 
 customElements.define("lutarym-calendar-card", LutarymCalendarCard);
+
+/**
+ * Visual (GUI) config editor — no YAML required.
+ * Rebuilds the DOM once, then only re-assigns .hass on child pickers on
+ * subsequent updates, so the entity-picker dropdowns stay usable and inputs
+ * don't lose focus while typing.
+ */
+class LutarymCalendarCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._hass = null;
+    this._config = null;
+    this._built = false;
+  }
+
+  setConfig(config) {
+    this._config = {
+      title: config.title || "",
+      entities: (config.entities || []).map((e) =>
+        typeof e === "string" ? { entity: e, name: "", color: "" } : { name: "", color: "", ...e }
+      ),
+      days_ahead: config.days_ahead ?? 14,
+      max_events: config.max_events ?? 30,
+      show_past_today: config.show_past_today ?? false,
+      refresh_seconds: config.refresh_seconds ?? 60,
+      language: config.language || "",
+    };
+    if (this._built) this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    if (!this._built) {
+      this._render();
+      this._built = true;
+    } else {
+      // propagate to entity pickers without rebuilding the whole form
+      this.shadowRoot.querySelectorAll("ha-entity-picker").forEach((el) => {
+        el.hass = hass;
+      });
+    }
+  }
+
+  _emitChange() {
+    this.dispatchEvent(
+      new CustomEvent("config-changed", {
+        detail: { config: this._config },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  _render() {
+    if (!this._config) return;
+
+    const style = document.createElement("style");
+    style.textContent = `
+      .form { display: flex; flex-direction: column; gap: 12px; padding: 8px 0; }
+      .row { display: flex; gap: 8px; align-items: center; }
+      .row-fields { display: flex; gap: 8px; }
+      .row-fields > * { flex: 1; }
+      .entity-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        border: 1px solid var(--divider-color);
+        border-radius: 8px;
+        padding: 8px;
+      }
+      .entity-row ha-entity-picker { flex: 2; }
+      .entity-row .name-field { flex: 1; }
+      .color-input {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border: 1px solid var(--divider-color);
+        border-radius: 6px;
+        background: none;
+        cursor: pointer;
+      }
+      .remove-btn {
+        cursor: pointer;
+        background: none;
+        border: 1px solid var(--divider-color);
+        border-radius: 6px;
+        color: var(--error-color, #db4437);
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
+        line-height: 1;
+      }
+      .add-btn {
+        cursor: pointer;
+        background: none;
+        border: 1px dashed var(--divider-color);
+        border-radius: 8px;
+        padding: 8px;
+        color: var(--primary-color);
+        font-size: 0.9em;
+      }
+      .section-label {
+        font-size: 0.8em;
+        font-weight: 600;
+        color: var(--secondary-text-color);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin-top: 4px;
+      }
+      .switch-row { display: flex; align-items: center; justify-content: space-between; }
+    `;
+
+    const wrap = document.createElement("div");
+    wrap.className = "form";
+
+    // --- Title ---
+    const titleField = document.createElement("ha-textfield");
+    titleField.label = "Titel";
+    titleField.value = this._config.title;
+    titleField.style.width = "100%";
+    titleField.addEventListener("input", (e) => {
+      this._config.title = e.target.value;
+      this._emitChange();
+    });
+    wrap.appendChild(titleField);
+
+    // --- Entities ---
+    const entLabel = document.createElement("div");
+    entLabel.className = "section-label";
+    entLabel.textContent = "Kalender";
+    wrap.appendChild(entLabel);
+
+    const entContainer = document.createElement("div");
+    entContainer.style.display = "flex";
+    entContainer.style.flexDirection = "column";
+    entContainer.style.gap = "8px";
+    wrap.appendChild(entContainer);
+
+    this._config.entities.forEach((entCfg, idx) => {
+      const row = document.createElement("div");
+      row.className = "entity-row";
+
+      const picker = document.createElement("ha-entity-picker");
+      picker.hass = this._hass;
+      picker.includeDomains = ["calendar"];
+      picker.value = entCfg.entity || "";
+      picker.label = "Kalender-Entity";
+      picker.addEventListener("value-changed", (e) => {
+        this._config.entities[idx].entity = e.detail.value;
+        this._emitChange();
+      });
+      row.appendChild(picker);
+
+      const nameField = document.createElement("ha-textfield");
+      nameField.className = "name-field";
+      nameField.label = "Label";
+      nameField.value = entCfg.name || "";
+      nameField.addEventListener("input", (e) => {
+        this._config.entities[idx].name = e.target.value;
+        this._emitChange();
+      });
+      row.appendChild(nameField);
+
+      const colorInput = document.createElement("input");
+      colorInput.type = "color";
+      colorInput.className = "color-input";
+      colorInput.value = entCfg.color || "#4a90d9";
+      colorInput.title = "Randfarbe";
+      colorInput.addEventListener("input", (e) => {
+        this._config.entities[idx].color = e.target.value;
+        this._emitChange();
+      });
+      row.appendChild(colorInput);
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "remove-btn";
+      removeBtn.textContent = "✕";
+      removeBtn.title = "Entfernen";
+      removeBtn.addEventListener("click", () => {
+        this._config.entities.splice(idx, 1);
+        this._render();
+        this._emitChange();
+      });
+      row.appendChild(removeBtn);
+
+      entContainer.appendChild(row);
+    });
+
+    const addBtn = document.createElement("button");
+    addBtn.className = "add-btn";
+    addBtn.textContent = "+ Kalender hinzufügen";
+    addBtn.addEventListener("click", () => {
+      this._config.entities.push({ entity: "", name: "", color: "#4a90d9" });
+      this._render();
+      this._emitChange();
+    });
+    wrap.appendChild(addBtn);
+
+    // --- Numeric options ---
+    const numLabel = document.createElement("div");
+    numLabel.className = "section-label";
+    numLabel.textContent = "Anzeige";
+    wrap.appendChild(numLabel);
+
+    const numRow = document.createElement("div");
+    numRow.className = "row-fields";
+
+    const daysField = document.createElement("ha-textfield");
+    daysField.label = "Tage im Voraus";
+    daysField.type = "number";
+    daysField.value = this._config.days_ahead;
+    daysField.addEventListener("input", (e) => {
+      this._config.days_ahead = Number(e.target.value) || 14;
+      this._emitChange();
+    });
+    numRow.appendChild(daysField);
+
+    const maxField = document.createElement("ha-textfield");
+    maxField.label = "Max. Termine";
+    maxField.type = "number";
+    maxField.value = this._config.max_events;
+    maxField.addEventListener("input", (e) => {
+      this._config.max_events = Number(e.target.value) || 30;
+      this._emitChange();
+    });
+    numRow.appendChild(maxField);
+
+    const refreshField = document.createElement("ha-textfield");
+    refreshField.label = "Refresh (Sek.)";
+    refreshField.type = "number";
+    refreshField.value = this._config.refresh_seconds;
+    refreshField.addEventListener("input", (e) => {
+      this._config.refresh_seconds = Number(e.target.value) || 60;
+      this._emitChange();
+    });
+    numRow.appendChild(refreshField);
+
+    wrap.appendChild(numRow);
+
+    // --- Show past today switch ---
+    const switchRow = document.createElement("div");
+    switchRow.className = "switch-row";
+    const switchLabel = document.createElement("span");
+    switchLabel.textContent = "Beendete Termine von heute anzeigen";
+    switchRow.appendChild(switchLabel);
+    const switchEl = document.createElement("ha-switch");
+    switchEl.checked = this._config.show_past_today;
+    switchEl.addEventListener("change", (e) => {
+      this._config.show_past_today = e.target.checked;
+      this._emitChange();
+    });
+    switchRow.appendChild(switchEl);
+    wrap.appendChild(switchRow);
+
+    this.shadowRoot.innerHTML = "";
+    this.shadowRoot.appendChild(style);
+    this.shadowRoot.appendChild(wrap);
+  }
+}
+
+customElements.define("lutarym-calendar-card-editor", LutarymCalendarCardEditor);
 
 window.customCards = window.customCards || [];
 window.customCards.push({

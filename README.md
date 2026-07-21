@@ -14,7 +14,14 @@ für Icons, Rahmen und Fortschrittsbalken verbrauchen.
 3. „Lutarym Calendar Card" installieren
 4. Bei Bedarf Browser-Cache leeren (Strg+Shift+R)
 
-## Konfiguration
+## Einrichtung über GUI
+
+Karte hinzufügen → „Lutarym Calendar Card" auswählen → visueller Editor öffnet
+sich automatisch. Kalender per Entity-Picker auswählen, optional Label und
+Randfarbe je Kalender setzen, „+ Kalender hinzufügen" für weitere. Kein YAML
+nötig — der Code-Editor (⋮ → YAML bearbeiten) bleibt trotzdem verfügbar.
+
+## Konfiguration (YAML, optional)
 
 ```yaml
 type: custom:lutarym-calendar-card
